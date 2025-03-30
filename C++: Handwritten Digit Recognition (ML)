@@ -1,0 +1,314 @@
+#include <tiny_dnn/tiny_dnn.h>
+#include <iostream>
+#include <iomanip>
+#include <chrono>
+#include <fstream>
+#include <string>
+#include <algorithm>
+#include <random>
+#include <ctime>
+
+using namespace tiny_dnn;
+using namespace tiny_dnn::activation;
+using namespace std;
+
+// Utility function to save network weights
+void save_model(const network<sequential>& net, const string& filename) {
+    std::ofstream ofs(filename);
+    ofs << net;
+}
+
+// Utility function to load network weights
+void load_model(network<sequential>& net, const string& filename) {
+    std::ifstream ifs(filename);
+    ifs >> net;
+}
+
+// Function to load MNIST dataset from CSV files
+void load_mnist_from_csv(const string& images_file, 
+                        const string& labels_file,
+                        vector<vec_t>& images,
+                        vector<label_t>& labels) {
+    std::ifstream ifs_images(images_file);
+    std::ifstream ifs_labels(labels_file);
+    
+    string line;
+    while (getline(ifs_images, line)) {
+        std::stringstream ss(line);
+        string pixel;
+        vec_t image;
+        
+        while (getline(ss, pixel, ',')) {
+            image.push_back(stof(pixel) / 255.0); // Normalize to [0, 1]
+        }
+        
+        if (image.size() == 784) { // 28x28 pixels
+            images.push_back(image);
+        }
+    }
+    
+    while (getline(ifs_labels, line)) {
+        labels.push_back(stoi(line));
+    }
+    
+    if (images.size() != labels.size()) {
+        throw runtime_error("Images and labels size mismatch");
+    }
+}
+
+// Function to visualize a digit sample
+void visualize_digit(const vec_t& image) {
+    for (int y = 0; y < 28; y++) {
+        for (int x = 0; x < 28; x++) {
+            float pixel = image[y * 28 + x];
+            if (pixel < 0.3) cout << " ";
+            else if (pixel < 0.6) cout << "·";
+            else if (pixel < 0.8) cout << "o";
+            else cout << "@";
+        }
+        cout << endl;
+    }
+}
+
+// Compute accuracy
+float compute_accuracy(const network<sequential>& net, 
+                      const vector<vec_t>& images,
+                      const vector<label_t>& labels) {
+    int num_correct = 0;
+    for (size_t i = 0; i < images.size(); i++) {
+        vec_t prediction = net.predict(images[i]);
+        int predicted_label = std::distance(prediction.begin(), 
+                                        std::max_element(prediction.begin(), 
+                                                        prediction.end()));
+        if (predicted_label == labels[i]) {
+            num_correct++;
+        }
+    }
+    return (float)num_correct / images.size();
+}
+
+// Function to create confusion matrix
+vector<vector<int>> compute_confusion_matrix(const network<sequential>& net,
+                                           const vector<vec_t>& images,
+                                           const vector<label_t>& labels) {
+    vector<vector<int>> confusion(10, vector<int>(10, 0));
+    for (size_t i = 0; i < images.size(); i++) {
+        vec_t prediction = net.predict(images[i]);
+        int predicted_digit = std::distance(prediction.begin(),
+                                         std::max_element(prediction.begin(),
+                                                         prediction.end()));
+        confusion[labels[i]][predicted_digit]++;
+    }
+    return confusion;
+}
+
+int main() {
+    // Create a more sophisticated neural network
+    network<sequential> net;
+
+    // Input layer (28x28=784)
+    net << fully_connected_layer(784, 256)
+        << leaky_relu()
+        << batch_normalization_layer(256)
+        << dropout_layer(256, 0.3)
+        << fully_connected_layer(256, 128) 
+        << leaky_relu()
+        << batch_normalization_layer(128)
+        << dropout_layer(128, 0.3)
+        << fully_connected_layer(128, 64)
+        << leaky_relu()
+        << batch_normalization_layer(64)
+        << fully_connected_layer(64, 10)
+        << softmax();
+
+    // Print network architecture
+    cout << "Network architecture:" << endl;
+    net.weight_init(weight_init::he);
+    net.bias_init(weight_init::constant);
+    net.init_weight();
+    cout << net << endl;
+
+    // Set path to the MNIST dataset CSV files
+    // You can convert the MNIST binary files to CSV format with Python
+    // or download pre-prepared CSVs
+    const string train_images_file = "mnist_train_images.csv";
+    const string train_labels_file = "mnist_train_labels.csv";
+    const string test_images_file = "mnist_test_images.csv";
+    const string test_labels_file = "mnist_test_labels.csv";
+    
+    // Load data
+    cout << "Loading MNIST dataset..." << endl;
+    vector<vec_t> train_images, test_images;
+    vector<label_t> train_labels, test_labels;
+    
+    try {
+        load_mnist_from_csv(train_images_file, train_labels_file, train_images, train_labels);
+        load_mnist_from_csv(test_images_file, test_labels_file, test_images, test_labels);
+        
+        cout << "Loaded " << train_images.size() << " training examples" << endl;
+        cout << "Loaded " << test_images.size() << " test examples" << endl;
+    } catch (const exception& e) {
+        cerr << "Error loading data: " << e.what() << endl;
+        cerr << "Please make sure the CSV files exist in the correct path." << endl;
+        cerr << "Continuing with dummy data for demonstration purposes..." << endl;
+        
+        // Create some dummy data for demonstration
+        train_images.resize(100, vec_t(784, 0.0));
+        train_labels.resize(100, 0);
+        test_images.resize(20, vec_t(784, 0.0));
+        test_labels.resize(20, 0);
+        
+        // Generate some random patterns
+        std::mt19937 rng(static_cast<unsigned int>(std::time(nullptr)));
+        std::uniform_real_distribution<float> dist(0.0, 1.0);
+        
+        for (size_t i = 0; i < train_images.size(); i++) {
+            for (size_t j = 0; j < 784; j++) {
+                train_images[i][j] = dist(rng);
+            }
+            train_labels[i] = i % 10;
+        }
+        
+        for (size_t i = 0; i < test_images.size(); i++) {
+            for (size_t j = 0; j < 784; j++) {
+                test_images[i][j] = dist(rng);
+            }
+            test_labels[i] = i % 10;
+        }
+    }
+
+    // Display a sample digit
+    cout << "\nSample digit visualization:" << endl;
+    if (!train_images.empty()) {
+        cout << "Label: " << static_cast<int>(train_labels[0]) << endl;
+        visualize_digit(train_images[0]);
+    }
+
+    // Create validation set from training data
+    vector<vec_t> validation_images;
+    vector<label_t> validation_labels;
+    
+    size_t validation_size = train_images.size() / 5; // 20% for validation
+    
+    for (size_t i = 0; i < validation_size; i++) {
+        validation_images.push_back(train_images.back());
+        validation_labels.push_back(train_labels.back());
+        train_images.pop_back();
+        train_labels.pop_back();
+    }
+    
+    cout << "Split " << validation_images.size() << " examples for validation" << endl;
+    
+    // Hyperparameters
+    int batch_size = 100;
+    int epochs = 20;
+    float learning_rate = 0.01;
+    
+    // Optimizer
+    adam optimizer;
+    optimizer.alpha = learning_rate;
+    
+    // Progress callback
+    int train_size = static_cast<int>(train_images.size());
+    int batches_per_epoch = train_size / batch_size;
+    
+    cout << "\nTraining with:" << endl;
+    cout << "  - Learning rate: " << learning_rate << endl;
+    cout << "  - Batch size: " << batch_size << endl;
+    cout << "  - Epochs: " << epochs << endl;
+    
+    // Start timing
+    auto training_start = std::chrono::high_resolution_clock::now();
+    
+    // Train the network
+    net.fit<cross_entropy_multiclass>(optimizer, train_images, train_labels, batch_size, epochs,
+        // Called after each mini-batch
+        [&](const network<sequential>& net, size_t batch) {
+            if (batch % 10 == 0) {
+                int epoch = batch / batches_per_epoch;
+                int batch_in_epoch = batch % batches_per_epoch;
+                cout << "\rEpoch " << epoch << "/" << epochs
+                     << ", Batch " << batch_in_epoch << "/" << batches_per_epoch
+                     << " (" << fixed << setprecision(1) << (batch_in_epoch * 100.0 / batches_per_epoch) << "%)"
+                     << flush;
+            }
+        },
+        // Called after each epoch
+        [&](const network<sequential>& net, size_t epoch) {
+            float train_accuracy = compute_accuracy(net, train_images, train_labels);
+            float validation_accuracy = compute_accuracy(net, validation_images, validation_labels);
+            
+            cout << "\rEpoch " << epoch << "/" << epochs
+                 << " - Training accuracy: " << fixed << setprecision(4) << train_accuracy
+                 << " - Validation accuracy: " << validation_accuracy << endl;
+            
+            // Save the best model based on validation accuracy
+            static float best_accuracy = 0.0;
+            if (validation_accuracy > best_accuracy) {
+                best_accuracy = validation_accuracy;
+                save_model(net, "best_mnist_model.tnn");
+                cout << "  Model saved (validation accuracy: " << validation_accuracy << ")" << endl;
+            }
+        });
+    
+    // Stop timing
+    auto training_end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> training_duration = training_end - training_start;
+    
+    cout << "\nTraining completed in " << training_duration.count() << " seconds" << endl;
+    
+    // Load the best model
+    cout << "Loading best model..." << endl;
+    try {
+        load_model(net, "best_mnist_model.tnn");
+    } catch (const exception& e) {
+        cerr << "Could not load saved model: " << e.what() << endl;
+    }
+    
+    // Evaluate on test set
+    float test_accuracy = compute_accuracy(net, test_images, test_labels);
+    cout << "Test accuracy: " << fixed << setprecision(4) << test_accuracy << endl;
+    
+    // Compute and display confusion matrix
+    vector<vector<int>> confusion = compute_confusion_matrix(net, test_images, test_labels);
+    
+    cout << "\nConfusion Matrix:" << endl;
+    cout << "   |";
+    for (int i = 0; i < 10; i++) cout << setw(5) << i;
+    cout << " <- Predicted" << endl;
+    
+    cout << "---+";
+    for (int i = 0; i < 10; i++) cout << "-----";
+    cout << endl;
+    
+    for (int i = 0; i < 10; i++) {
+        cout << " " << i << " |";
+        for (int j = 0; j < 10; j++) {
+            cout << setw(5) << confusion[i][j];
+        }
+        cout << endl;
+    }
+    cout << "^" << endl;
+    cout << "Actual" << endl;
+    
+    // Test on a single example
+    if (!test_images.empty()) {
+        int test_idx = 0;
+        vec_t prediction = net.predict(test_images[test_idx]);
+        int predicted_digit = std::distance(prediction.begin(), std::max_element(prediction.begin(), prediction.end()));
+        
+        cout << "\nSample prediction:" << endl;
+        cout << "Actual digit: " << static_cast<int>(test_labels[test_idx]) << endl;
+        cout << "Predicted digit: " << predicted_digit << endl;
+        cout << "Confidence scores:" << endl;
+        
+        for (int i = 0; i < 10; i++) {
+            cout << "  Digit " << i << ": " << fixed << setprecision(6) << prediction[i] * 100.0 << "%" << endl;
+        }
+        
+        cout << "\nDigit visualization:" << endl;
+        visualize_digit(test_images[test_idx]);
+    }
+    
+    return 0;
+}
