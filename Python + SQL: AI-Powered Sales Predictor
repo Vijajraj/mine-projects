@@ -1,0 +1,548 @@
+-- Enhanced schema with additional tables and fields
+CREATE TABLE users (
+    user_id INT PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    date_joined TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    birth_year INT,
+    country VARCHAR(50),
+    active BOOLEAN DEFAULT TRUE
+);
+
+CREATE TABLE genres (
+    genre_id INT PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL,
+    description TEXT
+);
+
+CREATE TABLE movies (
+    movie_id INT PRIMARY KEY,
+    title VARCHAR(200) NOT NULL,
+    release_year INT,
+    runtime_minutes INT,
+    avg_rating DECIMAL(3,1),
+    votes_count INT DEFAULT 0,
+    language VARCHAR(50),
+    content_rating VARCHAR(20),
+    poster_url VARCHAR(255)
+);
+
+CREATE TABLE movie_genres (
+    movie_id INT,
+    genre_id INT,
+    PRIMARY KEY (movie_id, genre_id),
+    FOREIGN KEY (movie_id) REFERENCES movies(movie_id) ON DELETE CASCADE,
+    FOREIGN KEY (genre_id) REFERENCES genres(genre_id) ON DELETE CASCADE
+);
+
+CREATE TABLE directors (
+    director_id INT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    birth_year INT,
+    country VARCHAR(50)
+);
+
+CREATE TABLE movie_directors (
+    movie_id INT,
+    director_id INT,
+    PRIMARY KEY (movie_id, director_id),
+    FOREIGN KEY (movie_id) REFERENCES movies(movie_id) ON DELETE CASCADE,
+    FOREIGN KEY (director_id) REFERENCES directors(director_id) ON DELETE CASCADE
+);
+
+CREATE TABLE actors (
+    actor_id INT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    birth_year INT,
+    country VARCHAR(50)
+);
+
+CREATE TABLE movie_actors (
+    movie_id INT,
+    actor_id INT,
+    role VARCHAR(100),
+    is_lead BOOLEAN DEFAULT FALSE,
+    PRIMARY KEY (movie_id, actor_id),
+    FOREIGN KEY (movie_id) REFERENCES movies(movie_id) ON DELETE CASCADE,
+    FOREIGN KEY (actor_id) REFERENCES actors(actor_id) ON DELETE CASCADE
+);
+
+CREATE TABLE user_ratings (
+    user_id INT,
+    movie_id INT,
+    rating DECIMAL(2,1) NOT NULL CHECK (rating >= 0.5 AND rating <= 5.0),
+    rating_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    review TEXT,
+    likes INT DEFAULT 0,
+    PRIMARY KEY (user_id, movie_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (movie_id) REFERENCES movies(movie_id) ON DELETE CASCADE
+);
+
+CREATE TABLE user_watchlist (
+    user_id INT,
+    movie_id INT,
+    added_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    watched BOOLEAN DEFAULT FALSE,
+    PRIMARY KEY (user_id, movie_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (movie_id) REFERENCES movies(movie_id) ON DELETE CASCADE
+);
+
+-- Create indexes for better query performance
+CREATE INDEX idx_movie_release_year ON movies(release_year);
+CREATE INDEX idx_movie_avg_rating ON movies(avg_rating);
+CREATE INDEX idx_user_ratings_rating ON user_ratings(rating);
+CREATE INDEX idx_user_ratings_date ON user_ratings(rating_date);
+CREATE INDEX idx_movie_genres_genre ON movie_genres(genre_id);
+
+-- Insert sample data for testing
+INSERT INTO users (user_id, username, email, birth_year, country)
+VALUES 
+(1, 'moviefan1', 'user1@example.com', 1985, 'USA'),
+(2, 'cinephile', 'user2@example.com', 1990, 'UK'),
+(3, 'filmcritic', 'user3@example.com', 1982, 'Canada');
+
+INSERT INTO genres (genre_id, name)
+VALUES 
+(1, 'Action'),
+(2, 'Comedy'),
+(3, 'Drama'),
+(4, 'Sci-Fi'),
+(5, 'Thriller'),
+(6, 'Romance'),
+(7, 'Horror'),
+(8, 'Fantasy'),
+(9, 'Animation'),
+(10, 'Documentary');
+
+INSERT INTO movies (movie_id, title, release_year, runtime_minutes, avg_rating)
+VALUES 
+(1, 'The Shawshank Redemption', 1994, 142, 4.8),
+(2, 'The Godfather', 1972, 175, 4.7),
+(3, 'Pulp Fiction', 1994, 154, 4.6),
+(4, 'The Dark Knight', 2008, 152, 4.5),
+(5, 'Inception', 2010, 148, 4.4),
+(6, 'The Matrix', 1999, 136, 4.3),
+(7, 'Forrest Gump', 1994, 142, 4.2),
+(8, 'The Lord of the Rings: The Fellowship of the Ring', 2001, 178, 4.5),
+(9, 'Titanic', 1997, 194, 4.0),
+(10, 'Fight Club', 1999, 139, 4.4),
+(11, 'Avatar', 2009, 162, 3.9),
+(12, 'The Silence of the Lambs', 1991, 118, 4.3),
+(13, 'Blade Runner 2049', 2017, 164, 4.1),
+(14, 'Parasite', 2019, 132, 4.6),
+(15, 'Get Out', 2017, 104, 4.5);
+
+INSERT INTO movie_genres (movie_id, genre_id)
+VALUES 
+(1, 3), -- Shawshank: Drama
+(2, 3), -- Godfather: Drama
+(2, 5), -- Godfather: Thriller
+(3, 3), -- Pulp Fiction: Drama
+(3, 5), -- Pulp Fiction: Thriller
+(4, 1), -- Dark Knight: Action
+(4, 5), -- Dark Knight: Thriller
+(5, 1), -- Inception: Action
+(5, 4), -- Inception: Sci-Fi
+(6, 1), -- Matrix: Action
+(6, 4), -- Matrix: Sci-Fi
+(7, 3), -- Forrest Gump: Drama
+(7, 6), -- Forrest Gump: Romance
+(8, 1), -- LOTR: Action
+(8, 8), -- LOTR: Fantasy
+(9, 3), -- Titanic: Drama
+(9, 6), -- Titanic: Romance
+(10, 3), -- Fight Club: Drama
+(10, 5), -- Fight Club: Thriller
+(11, 1), -- Avatar: Action
+(11, 4), -- Avatar: Sci-Fi
+(11, 8), -- Avatar: Fantasy
+(12, 5), -- Silence of the Lambs: Thriller
+(12, 7), -- Silence of the Lambs: Horror
+(13, 4), -- Blade Runner 2049: Sci-Fi
+(13, 5), -- Blade Runner 2049: Thriller
+(14, 3), -- Parasite: Drama
+(14, 5), -- Parasite: Thriller
+(15, 5), -- Get Out: Thriller
+(15, 7); -- Get Out: Horror
+
+INSERT INTO user_ratings (user_id, movie_id, rating, rating_date)
+VALUES 
+-- User 1 ratings
+(1, 1, 5.0, '2024-01-15'), -- Loves Shawshank
+(1, 3, 4.5, '2024-01-20'), -- Likes Pulp Fiction
+(1, 4, 5.0, '2024-02-01'), -- Loves Dark Knight
+(1, 5, 4.0, '2024-02-05'), -- Likes Inception
+(1, 6, 4.5, '2024-02-10'), -- Likes Matrix
+(1, 10, 4.0, '2024-03-01'), -- Likes Fight Club
+(1, 12, 3.0, '2024-03-15'), -- Neutral on Silence of the Lambs
+(1, 14, 4.5, '2024-03-20'), -- Likes Parasite
+
+-- User 2 ratings
+(2, 2, 5.0, '2024-01-10'),
+(2, 5, 4.5, '2024-01-12'),
+(2, 7, 4.0, '2024-01-25'),
+(2, 8, 5.0, '2024-02-03'),
+(2, 9, 3.5, '2024-02-14'),
+(2, 13, 4.5, '2024-03-01'),
+
+-- User 3 ratings
+(3, 1, 4.5, '2024-01-05'),
+(3, 2, 5.0, '2024-01-12'),
+(3, 3, 4.0, '2024-01-18'),
+(3, 6, 3.5, '2024-02-01'),
+(3, 11, 3.0, '2024-02-15'),
+(3, 14, 5.0, '2024-03-10'),
+(3, 15, 4.5, '2024-03-25');
+
+/* === RECOMMENDATION APPROACHES === */
+
+-- 1. Basic Genre-Based Recommendations
+-- Find movies in genres the user has rated highly but hasn't watched yet
+WITH favorite_genres AS (
+    SELECT g.genre_id, g.name AS genre_name, AVG(r.rating) AS avg_rating, COUNT(*) AS rating_count
+    FROM user_ratings r
+    JOIN movies m ON r.movie_id = m.movie_id
+    JOIN movie_genres mg ON m.movie_id = mg.movie_id
+    JOIN genres g ON mg.genre_id = g.genre_id
+    WHERE r.user_id = 1 AND r.rating >= 4.0
+    GROUP BY g.genre_id, g.name
+    HAVING COUNT(*) > 1
+    ORDER BY avg_rating DESC, rating_count DESC
+)
+SELECT m.movie_id, m.title, m.release_year, m.avg_rating, 
+       STRING_AGG(g.name, ', ') AS genres,
+       fg.avg_rating AS user_genre_rating
+FROM movies m
+JOIN movie_genres mg ON m.movie_id = mg.movie_id
+JOIN genres g ON mg.genre_id = g.genre_id
+JOIN favorite_genres fg ON mg.genre_id = fg.genre_id
+WHERE NOT EXISTS (
+    SELECT 1 FROM user_ratings ur WHERE ur.user_id = 1 AND ur.movie_id = m.movie_id
+)
+GROUP BY m.movie_id, m.title, m.release_year, m.avg_rating, fg.avg_rating
+ORDER BY fg.avg_rating DESC, m.avg_rating DESC
+LIMIT 10;
+
+-- 2. Collaborative Filtering - Similar Users
+-- Find movies that similar users (with similar taste) have rated highly
+WITH user_similarity AS (
+    SELECT 
+        u2.user_id AS similar_user_id,
+        COUNT(*) AS movies_in_common,
+        AVG(ABS(ur1.rating - ur2.rating)) AS avg_rating_diff
+    FROM user_ratings ur1
+    JOIN user_ratings ur2 ON ur1.movie_id = ur2.movie_id AND ur1.user_id <> ur2.user_id
+    JOIN users u2 ON ur2.user_id = u2.user_id
+    WHERE ur1.user_id = 1
+    GROUP BY u2.user_id
+    HAVING COUNT(*) >= 3
+    ORDER BY avg_rating_diff ASC, movies_in_common DESC
+    LIMIT 5
+),
+similar_user_recommendations AS (
+    SELECT 
+        m.movie_id,
+        m.title,
+        m.release_year,
+        us.similar_user_id,
+        ur.rating AS similar_user_rating,
+        us.avg_rating_diff,
+        us.movies_in_common,
+        (ur.rating * (1 - us.avg_rating_diff/5)) AS adjusted_rating
+    FROM user_similarity us
+    JOIN user_ratings ur ON us.similar_user_id = ur.user_id
+    JOIN movies m ON ur.movie_id = m.movie_id
+    WHERE ur.rating >= 4.0
+    AND NOT EXISTS (
+        SELECT 1 FROM user_ratings ur2 
+        WHERE ur2.user_id = 1 AND ur2.movie_id = m.movie_id
+    )
+)
+SELECT 
+    movie_id, 
+    title, 
+    release_year, 
+    STRING_AGG(DISTINCT similar_user_id::TEXT, ', ') AS recommended_by_users,
+    AVG(similar_user_rating) AS avg_recommender_rating,
+    AVG(adjusted_rating) AS weighted_score,
+    COUNT(*) AS num_recommenders
+FROM similar_user_recommendations
+GROUP BY movie_id, title, release_year
+ORDER BY weighted_score DESC, num_recommenders DESC
+LIMIT 10;
+
+-- 3. Content-Based Filtering
+-- Factor in directors and actors the user might like
+WITH preferred_content AS (
+    SELECT 
+        mg.genre_id,
+        COUNT(*) AS genre_count,
+        AVG(ur.rating) AS avg_genre_rating
+    FROM user_ratings ur
+    JOIN movies m ON ur.movie_id = m.movie_id
+    JOIN movie_genres mg ON m.movie_id = mg.movie_id
+    WHERE ur.user_id = 1 AND ur.rating >= 4.0
+    GROUP BY mg.genre_id
+),
+movie_scores AS (
+    SELECT 
+        m.movie_id,
+        m.title,
+        m.release_year,
+        m.avg_rating AS global_rating,
+        SUM(pc.avg_genre_rating * 0.2) AS content_score
+    FROM movies m
+    JOIN movie_genres mg ON m.movie_id = mg.movie_id
+    JOIN preferred_content pc ON mg.genre_id = pc.genre_id
+    WHERE NOT EXISTS (
+        SELECT 1 FROM user_ratings ur 
+        WHERE ur.user_id = 1 AND ur.movie_id = m.movie_id
+    )
+    GROUP BY m.movie_id, m.title, m.release_year, m.avg_rating
+)
+SELECT 
+    ms.movie_id,
+    ms.title,
+    ms.release_year,
+    ms.global_rating,
+    ROUND(ms.content_score, 2) AS content_match_score,
+    STRING_AGG(DISTINCT g.name, ', ') AS genres,
+    (ms.global_rating * 0.7 + ms.content_score * 0.3) AS final_score
+FROM movie_scores ms
+JOIN movie_genres mg ON ms.movie_id = mg.movie_id
+JOIN genres g ON mg.genre_id = g.genre_id
+GROUP BY ms.movie_id, ms.title, ms.release_year, ms.global_rating, ms.content_score
+ORDER BY final_score DESC
+LIMIT 10;
+
+-- 4. Hybrid Recommendation (combining all approaches)
+WITH genre_based AS (
+    SELECT m.movie_id, m.title, AVG(m.avg_rating * 0.5 + 4.0 * 0.5) AS score
+    FROM movies m
+    JOIN movie_genres mg ON m.movie_id = mg.movie_id
+    JOIN (
+        SELECT mg.genre_id
+        FROM user_ratings ur
+        JOIN movies m ON ur.movie_id = m.movie_id
+        JOIN movie_genres mg ON m.movie_id = mg.movie_id
+        WHERE ur.user_id = 1 AND ur.rating >= 4.0
+        GROUP BY mg.genre_id
+    ) user_genres ON mg.genre_id = user_genres.genre_id
+    WHERE NOT EXISTS (
+        SELECT 1 FROM user_ratings ur 
+        WHERE ur.user_id = 1 AND ur.movie_id = m.movie_id
+    )
+    GROUP BY m.movie_id, m.title
+),
+collab_filtering AS (
+    SELECT 
+        m.movie_id, 
+        m.title,
+        AVG(ur.rating) AS score
+    FROM user_ratings ur
+    JOIN movies m ON ur.movie_id = m.movie_id
+    WHERE ur.user_id IN (
+        SELECT ur2.user_id
+        FROM user_ratings ur1
+        JOIN user_ratings ur2 ON ur1.movie_id = ur2.movie_id
+        WHERE ur1.user_id = 1 AND ur2.user_id <> 1
+        GROUP BY ur2.user_id
+        HAVING COUNT(*) >= 2 AND AVG(ABS(ur1.rating - ur2.rating)) < 1
+    )
+    AND ur.rating >= 4.0
+    AND NOT EXISTS (
+        SELECT 1 FROM user_ratings ur3 
+        WHERE ur3.user_id = 1 AND ur3.movie_id = m.movie_id
+    )
+    GROUP BY m.movie_id, m.title
+),
+final_recommendations AS (
+    SELECT 
+        COALESCE(gb.movie_id, cf.movie_id) AS movie_id,
+        COALESCE(gb.title, cf.title) AS title,
+        COALESCE(gb.score, 0) AS genre_score,
+        COALESCE(cf.score, 0) AS collab_score,
+        (COALESCE(gb.score, 0) * 0.4 + COALESCE(cf.score, 0) * 0.6) AS combined_score
+    FROM genre_based gb
+    FULL OUTER JOIN collab_filtering cf ON gb.movie_id = cf.movie_id
+)
+SELECT 
+    fr.movie_id,
+    fr.title,
+    m.release_year,
+    m.avg_rating AS global_rating,
+    ROUND(fr.genre_score, 2) AS genre_match,
+    ROUND(fr.collab_score, 2) AS similar_users_rating,
+    ROUND(fr.combined_score, 2) AS recommendation_score,
+    STRING_AGG(DISTINCT g.name, ', ') AS genres
+FROM final_recommendations fr
+JOIN movies m ON fr.movie_id = m.movie_id
+JOIN movie_genres mg ON m.movie_id = mg.movie_id
+JOIN genres g ON mg.genre_id = g.genre_id
+GROUP BY fr.movie_id, fr.title, m.release_year, m.avg_rating, fr.genre_score, fr.collab_score, fr.combined_score
+ORDER BY fr.combined_score DESC
+LIMIT 10;
+
+-- 5. Recommendation query with explanation
+SELECT 
+    m.movie_id,
+    m.title,
+    m.release_year,
+    m.avg_rating,
+    STRING_AGG(DISTINCT g.name, ', ') AS genres,
+    CASE 
+        WHEN m.avg_rating >= 4.5 THEN 'Highly acclaimed'
+        WHEN m.avg_rating >= 4.0 THEN 'Well received'
+        ELSE 'Popular'
+    END AS status,
+    CONCAT(
+        'Recommended because you rated ',
+        (SELECT STRING_AGG(DISTINCT m2.title, ', ') 
+         FROM user_ratings ur2 
+         JOIN movies m2 ON ur2.movie_id = m2.movie_id
+         JOIN movie_genres mg2 ON m2.movie_id = mg2.movie_id
+         WHERE ur2.user_id = 1 
+         AND mg2.genre_id IN (SELECT DISTINCT mg3.genre_id FROM movie_genres mg3 WHERE mg3.movie_id = m.movie_id)
+         AND ur2.rating >= 4.0
+         LIMIT 2),
+        ' highly'
+    ) AS explanation
+FROM movies m
+JOIN movie_genres mg ON m.movie_id = mg.movie_id
+JOIN genres g ON mg.genre_id = g.genre_id
+WHERE NOT EXISTS (
+    SELECT 1 FROM user_ratings ur 
+    WHERE ur.user_id = 1 AND ur.movie_id = m.movie_id
+)
+AND EXISTS (
+    SELECT 1 FROM movie_genres mg2 
+    JOIN (
+        SELECT DISTINCT mg3.genre_id
+        FROM user_ratings ur3
+        JOIN movies m3 ON ur3.movie_id = m3.movie_id
+        JOIN movie_genres mg3 ON m3.movie_id = mg3.movie_id
+        WHERE ur3.user_id = 1 AND ur3.rating >= 4.0
+    ) user_genres ON mg2.genre_id = user_genres.genre_id
+    WHERE mg2.movie_id = m.movie_id
+)
+GROUP BY m.movie_id, m.title, m.release_year, m.avg_rating
+ORDER BY 
+    COUNT(DISTINCT CASE WHEN g.genre_id IN (
+        SELECT DISTINCT mg4.genre_id
+        FROM user_ratings ur4
+        JOIN movies m4 ON ur4.movie_id = m4.movie_id
+        JOIN movie_genres mg4 ON m4.movie_id = mg4.movie_id
+        WHERE ur4.user_id = 1 AND ur4.rating >= 4.5
+    ) THEN g.genre_id END) DESC,
+    m.avg_rating DESC
+LIMIT 5;
+
+-- Create a stored procedure for recommendations
+CREATE OR REPLACE FUNCTION get_recommendations(user_id_param INT)
+RETURNS TABLE (
+    movie_id INT,
+    title VARCHAR,
+    release_year INT,
+    genres TEXT,
+    score DECIMAL,
+    reason TEXT
+) AS $$
+BEGIN
+    RETURN QUERY
+    WITH user_prefs AS (
+        SELECT 
+            mg.genre_id,
+            g.name AS genre_name,
+            AVG(ur.rating) AS avg_rating,
+            COUNT(*) AS rating_count
+        FROM user_ratings ur
+        JOIN movies m ON ur.movie_id = m.movie_id
+        JOIN movie_genres mg ON m.movie_id = mg.movie_id
+        JOIN genres g ON mg.genre_id = g.genre_id
+        WHERE ur.user_id = user_id_param AND ur.rating >= 3.5
+        GROUP BY mg.genre_id, g.name
+        ORDER BY avg_rating DESC
+    ),
+    similar_users AS (
+        SELECT 
+            ur2.user_id,
+            1 - (ABS(AVG(ur1.rating - ur2.rating)) / 5) AS similarity_score,
+            COUNT(*) AS movies_in_common
+        FROM user_ratings ur1
+        JOIN user_ratings ur2 ON ur1.movie_id = ur2.movie_id AND ur1.user_id <> ur2.user_id
+        WHERE ur1.user_id = user_id_param
+        GROUP BY ur2.user_id
+        HAVING COUNT(*) >= 2
+        ORDER BY similarity_score DESC
+        LIMIT 5
+    ),
+    collab_recs AS (
+        SELECT 
+            m.movie_id,
+            AVG(ur.rating * su.similarity_score) AS weighted_rating,
+            COUNT(DISTINCT ur.user_id) AS recommender_count
+        FROM similar_users su
+        JOIN user_ratings ur ON su.user_id = ur.user_id
+        JOIN movies m ON ur.movie_id = m.movie_id
+        WHERE ur.rating >= 4.0
+        AND NOT EXISTS (
+            SELECT 1 FROM user_ratings ur2 
+            WHERE ur2.user_id = user_id_param AND ur2.movie_id = m.movie_id
+        )
+        GROUP BY m.movie_id
+    ),
+    content_recs AS (
+        SELECT 
+            m.movie_id,
+            SUM(up.avg_rating * up.rating_count) / SUM(up.rating_count) AS content_score,
+            COUNT(DISTINCT up.genre_id) AS matching_genres
+        FROM movies m
+        JOIN movie_genres mg ON m.movie_id = mg.movie_id
+        JOIN user_prefs up ON mg.genre_id = up.genre_id
+        WHERE NOT EXISTS (
+            SELECT 1 FROM user_ratings ur 
+            WHERE ur.user_id = user_id_param AND ur.movie_id = m.movie_id
+        )
+        GROUP BY m.movie_id
+    ),
+    final_scores AS (
+        SELECT 
+            COALESCE(cr.movie_id, co.movie_id) AS movie_id,
+            COALESCE(cr.weighted_rating, 0) * 0.6 + COALESCE(co.content_score, 0) * 0.4 AS combined_score,
+            COALESCE(cr.recommender_count, 0) AS recommender_count,
+            COALESCE(co.matching_genres, 0) AS matching_genres
+        FROM collab_recs cr
+        FULL OUTER JOIN content_recs co ON cr.movie_id = co.movie_id
+    )
+    SELECT 
+        m.movie_id,
+        m.title,
+        m.release_year,
+        STRING_AGG(DISTINCT g.name, ', ') AS genres,
+        ROUND(fs.combined_score::numeric, 2) AS score,
+        CASE 
+            WHEN fs.recommender_count > 0 AND fs.matching_genres > 0 THEN 
+                CONCAT('Based on your taste in ', 
+                      (SELECT STRING_AGG(up.genre_name, ', ') FROM user_prefs up LIMIT 2),
+                      ' and similar users who liked this movie')
+            WHEN fs.recommender_count > 0 THEN 
+                'Recommended by users with similar taste to yours'
+            WHEN fs.matching_genres > 0 THEN
+                CONCAT('Matches your interest in ', 
+                      (SELECT STRING_AGG(up.genre_name, ', ') FROM user_prefs up LIMIT 2))
+            ELSE 'Highly rated movie you might enjoy'
+        END AS reason
+    FROM final_scores fs
+    JOIN movies m ON fs.movie_id = m.movie_id
+    JOIN movie_genres mg ON m.movie_id = mg.movie_id
+    JOIN genres g ON mg.genre_id = g.genre_id
+    GROUP BY m.movie_id, m.title, m.release_year, fs.combined_score, fs.recommender_count, fs.matching_genres
+    ORDER BY fs.combined_score DESC
+    LIMIT 10;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Call the stored procedure to get recommendations for user #1
+SELECT * FROM get_recommendations(1);
