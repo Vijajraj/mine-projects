@@ -1,0 +1,83 @@
+from textblob import TextBlob
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Sample tweets
+tweets = [
+    "I love Python!",
+    "I hate bugs.",
+    "This AI project is amazing!",
+    "The weather is terrible.",
+    "The movie was okay, nothing special.",
+    "Learning data science is challenging but rewarding.",
+    "The restaurant service was awful, but the food was great."
+]
+
+# Create a function for more nuanced sentiment analysis
+def analyze_sentiment(text):
+    analysis = TextBlob(text)
+    polarity = analysis.sentiment.polarity
+    subjectivity = analysis.sentiment.subjectivity
+    
+    # Define sentiment categories
+    if polarity > 0.3:
+        sentiment = "Very Positive"
+    elif polarity > 0:
+        sentiment = "Slightly Positive"
+    elif polarity == 0:
+        sentiment = "Neutral"
+    elif polarity > -0.3:
+        sentiment = "Slightly Negative"
+    else:
+        sentiment = "Very Negative"
+        
+    return {
+        'text': text,
+        'polarity': polarity,
+        'subjectivity': subjectivity,
+        'sentiment': sentiment
+    }
+
+# Analyze all tweets
+results = [analyze_sentiment(tweet) for tweet in tweets]
+
+# Convert to DataFrame
+df = pd.DataFrame(results)
+
+# Display results
+print("=== Sentiment Analysis Results ===")
+for _, row in df.iterrows():
+    print(f"Tweet: '{row['text']}'")
+    print(f"  → Sentiment: {row['sentiment']} (Polarity: {row['polarity']:.2f}, Subjectivity: {row['subjectivity']:.2f})")
+    print()
+
+# Visualize the results
+plt.figure(figsize=(10, 6))
+plt.scatter(df['polarity'], df['subjectivity'], c=df['polarity'], cmap='RdYlGn', alpha=0.8, s=100)
+
+# Add labels for each point
+for i, row in df.iterrows():
+    plt.annotate(f"Tweet {i+1}", 
+                 (row['polarity'], row['subjectivity']),
+                 xytext=(5, 5),
+                 textcoords='offset points')
+
+plt.colorbar(label='Sentiment Polarity')
+plt.grid(True, linestyle='--', alpha=0.7)
+plt.xlabel('Polarity (Negative → Positive)')
+plt.ylabel('Subjectivity (Factual → Opinion)')
+plt.title('Tweet Sentiment Analysis')
+plt.tight_layout()
+plt.show()
+
+# Generate summary statistics
+sentiment_counts = df['sentiment'].value_counts()
+print("=== Summary Statistics ===")
+print(f"Total tweets analyzed: {len(df)}")
+print("\nSentiment distribution:")
+for sentiment, count in sentiment_counts.items():
+    print(f"  - {sentiment}: {count} tweets ({count/len(df)*100:.1f}%)")
+
+print(f"\nAverage polarity: {df['polarity'].mean():.2f}")
+print(f"Average subjectivity: {df['subjectivity'].mean():.2f}")
