@@ -1,0 +1,291 @@
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public class EnhancedChatbot {
+    // Knowledge base for general questions
+    private static final Map<String, String> knowledgeBase = new HashMap<>();
+    
+    // Conversation memory to track context
+    private static final List<String> conversationHistory = new ArrayList<>();
+    
+    // User name for personalization
+    private static String userName = "User";
+    
+    // Sentiment tracking
+    private static int sentimentScore = 0;
+    
+    // Random responses for variety
+    private static final String[] fallbackResponses = {
+        "I'm not sure I understand. Could you rephrase that?",
+        "That's interesting, but I'm not sure how to respond.",
+        "I'm still learning! Could you try asking something else?",
+        "I didn't quite catch that. Can you explain differently?",
+        "Hmm, I'm not familiar with that topic yet."
+    };
+    
+    // Command patterns
+    private static final Pattern calculatePattern = Pattern.compile("calculate\\s+(.+)");
+    private static final Pattern definePattern = Pattern.compile("define\\s+(.+)");
+    private static final Pattern rememberPattern = Pattern.compile("remember\\s+that\\s+(.+)");
+    private static final Pattern weatherPattern = Pattern.compile("weather\\s+in\\s+(.+)");
+    
+    public static void main(String[] args) {
+        initializeKnowledgeBase();
+        Scanner scanner = new Scanner(System.in);
+        
+        displayWelcomeMessage();
+        
+        while (true) {
+            System.out.print("\nYou: ");
+            String input = scanner.nextLine().trim();
+            
+            // Skip empty inputs
+            if (input.isEmpty()) {
+                continue;
+            }
+            
+            // Add to conversation history
+            conversationHistory.add(input);
+            
+            // Convert to lowercase for processing but keep original for display
+            String lowerInput = input.toLowerCase();
+            
+            // Process the input
+            String response = processInput(lowerInput, input);
+            
+            // Display the response with a small typing delay
+            displayResponse(response);
+            
+            // Check for exit conditions
+            if (lowerInput.matches(".*\\b(exit|bye|goodbye|quit)\\b.*")) {
+                break;
+            }
+        }
+        
+        scanner.close();
+        displayFarewellMessage();
+    }
+    
+    private static void initializeKnowledgeBase() {
+        // General knowledge
+        knowledgeBase.put("java", "Java is a high-level, class-based, object-oriented programming language that is designed to have as few implementation dependencies as possible.");
+        knowledgeBase.put("python", "Python is an interpreted, high-level and general-purpose programming language. Its design philosophy emphasizes code readability with its use of significant indentation.");
+        knowledgeBase.put("chatbot", "A chatbot is a software application used to conduct an online chat conversation via text or text-to-speech, in lieu of providing direct contact with a live human agent.");
+        knowledgeBase.put("ai", "Artificial intelligence (AI) is intelligence demonstrated by machines, as opposed to natural intelligence displayed by humans or animals.");
+        knowledgeBase.put("machine learning", "Machine learning is a method of data analysis that automates analytical model building. It is a branch of artificial intelligence based on the idea that systems can learn from data, identify patterns and make decisions with minimal human intervention.");
+        
+        // Add more knowledge as needed
+        knowledgeBase.put("blockchain", "Blockchain is a growing list of records, called blocks, that are linked using cryptography. Each block contains a cryptographic hash of the previous block, a timestamp, and transaction data.");
+        knowledgeBase.put("cloud computing", "Cloud computing is the on-demand availability of computer system resources, especially data storage and computing power, without direct active management by the user.");
+        knowledgeBase.put("internet of things", "The Internet of Things (IoT) describes the network of physical objects that are embedded with sensors, software, and other technologies for the purpose of connecting and exchanging data with other devices and systems over the Internet.");
+    }
+    
+    private static void displayWelcomeMessage() {
+        System.out.println("╔══════════════════════════════════════════╗");
+        System.out.println("║           ENHANCED JAVA CHATBOT          ║");
+        System.out.println("╚══════════════════════════════════════════╝");
+        System.out.println("\nChatbot: Hello! I'm your enhanced Java chatbot.");
+        System.out.println("Chatbot: You can ask me questions, use commands like 'calculate', 'define',");
+        System.out.println("         'remember that...', or just chat casually.");
+        System.out.println("Chatbot: What's your name?");
+        
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("\nYou: ");
+        String nameInput = scanner.nextLine().trim();
+        
+        // Extract name using patterns or just use the whole input
+        if (nameInput.toLowerCase().startsWith("my name is ")) {
+            userName = nameInput.substring(11).trim();
+        } else if (nameInput.toLowerCase().startsWith("i am ") || nameInput.toLowerCase().startsWith("i'm ")) {
+            userName = nameInput.toLowerCase().startsWith("i am ") ? 
+                    nameInput.substring(5).trim() : nameInput.substring(4).trim();
+        } else if (!nameInput.isEmpty()) {
+            userName = nameInput;
+        }
+        
+        // Capitalize first letter of name
+        if (userName.length() > 0) {
+            userName = Character.toUpperCase(userName.charAt(0)) + 
+                      (userName.length() > 1 ? userName.substring(1) : "");
+        }
+        
+        System.out.println("\nChatbot: Nice to meet you, " + userName + "! How can I help you today?");
+    }
+    
+    private static void displayFarewellMessage() {
+        System.out.println("\nChatbot: It was nice chatting with you, " + userName + "!");
+        
+        // Provide feedback based on sentiment
+        if (sentimentScore > 5) {
+            System.out.println("Chatbot: I really enjoyed our positive conversation!");
+        } else if (sentimentScore < -5) {
+            System.out.println("Chatbot: I hope our next conversation will be more pleasant.");
+        } else {
+            System.out.println("Chatbot: Hope to see you again soon.");
+        }
+        
+        System.out.println("Chatbot: Goodbye and have a wonderful day!");
+    }
+    
+    private static void displayResponse(String response) {
+        System.out.print("Chatbot: ");
+        
+        // Simulate typing
+        for (char c : response.toCharArray()) {
+            System.out.print(c);
+            try {
+                // Random delay between 10-30ms per character for realistic typing
+                Thread.sleep((long) (Math.random() * 20 + 10));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        System.out.println();
+    }
+    
+    private static String processInput(String lowerInput, String originalInput) {
+        // Check for specific commands first
+        String commandResponse = processCommands(lowerInput, originalInput);
+        if (commandResponse != null) {
+            return commandResponse;
+        }
+        
+        // Check for greetings
+        if (lowerInput.matches(".*\\b(hello|hi|hey|greetings)\\b.*")) {
+            sentimentScore++;
+            return getRandomGreeting() + ", " + userName + "!";
+        }
+        
+        // Check for how are you
+        if (lowerInput.matches(".*\\b(how are you|how's it going|how do you do|how are things)\\b.*")) {
+            sentimentScore++;
+            return "I'm just a program, but thanks for asking! How are you doing today?";
+        }
+        
+        // Check for positive feedback
+        if (lowerInput.matches(".*\\b(good job|well done|thanks|thank you|appreciate|helpful)\\b.*")) {
+            sentimentScore += 2;
+            return "Thank you! I'm glad I could help. Is there anything else you'd like to know?";
+        }
+        
+        // Check for negative feedback
+        if (lowerInput.matches(".*\\b(useless|stupid|dumb|bad|terrible|awful|wrong)\\b.*")) {
+            sentimentScore -= 2;
+            return "I'm sorry I didn't meet your expectations. I'm still learning and trying to improve.";
+        }
+        
+        // Check if asking for time
+        if (lowerInput.matches(".*\\b(time|what time|current time|what's the time)\\b.*")) {
+            return "The current time is " + getCurrentTime() + ".";
+        }
+        
+        // Check if asking for date
+        if (lowerInput.matches(".*\\b(date|what date|today|current date|what's the date)\\b.*")) {
+            return "Today is " + getCurrentDate() + ".";
+        }
+        
+        // Check for questions about capabilities
+        if (lowerInput.matches(".*\\b(what can you do|your capabilities|help|features|commands)\\b.*")) {
+            return "I can:\n- Answer general knowledge questions\n- Perform basic calculations (try 'calculate 2+2')\n" +
+                   "- Define terms (try 'define artificial intelligence')\n- Remember information for our conversation\n" +
+                   "- Tell you the time and date\n- And just chat casually!";
+        }
+        
+        // Check for thank you
+        if (lowerInput.matches(".*\\b(thank you|thanks)\\b.*")) {
+            sentimentScore++;
+            return getRandomResponse(new String[] {
+                "You're welcome!",
+                "Happy to help!",
+                "Anytime, " + userName + "!",
+                "My pleasure!",
+                "Glad I could assist!"
+            });
+        }
+        
+        // Look for knowledge base matches
+        for (Map.Entry<String, String> entry : knowledgeBase.entrySet()) {
+            if (lowerInput.contains(entry.getKey())) {
+                return entry.getValue();
+            }
+        }
+        
+        // Check for questions
+        if (lowerInput.contains("?")) {
+            if (lowerInput.contains("your name")) {
+                return "My name is EnhancedBot! I'm a Java-based chatbot.";
+            }
+            
+            if (lowerInput.contains("who made you") || lowerInput.contains("who created you")) {
+                return "I was created as a Java programming exercise. My current version was enhanced from a simple template!";
+            }
+            
+            if (lowerInput.contains("favorite")) {
+                return "As a program, I don't have preferences, but I'm quite fond of efficient algorithms!";
+            }
+            
+            // Check for context from conversation history
+            if (conversationHistory.size() >= 3 && isFollowUpQuestion(lowerInput)) {
+                return "Based on our conversation, I think you're asking about " + 
+                        getTopicFromHistory() + ", but I don't have specific details on that aspect.";
+            }
+            
+            return "That's an interesting question. I don't have that information yet, but I'm always learning!";
+        }
+        
+        // Default: random fallback response
+        return getRandomResponse(fallbackResponses);
+    }
+    
+    private static String processCommands(String lowerInput, String originalInput) {
+        // Calculate command
+        Matcher calculateMatcher = calculatePattern.matcher(lowerInput);
+        if (calculateMatcher.find()) {
+            String expression = calculateMatcher.group(1).trim();
+            return calculateExpression(expression);
+        }
+        
+        // Define command
+        Matcher defineMatcher = definePattern.matcher(lowerInput);
+        if (defineMatcher.find()) {
+            String term = defineMatcher.group(1).trim();
+            return getDefinition(term);
+        }
+        
+        // Remember command
+        Matcher rememberMatcher = rememberPattern.matcher(lowerInput);
+        if (rememberMatcher.find()) {
+            String fact = rememberMatcher.group(1).trim();
+            return rememberFact(fact);
+        }
+        
+        // Weather command (simulated)
+        Matcher weatherMatcher = weatherPattern.matcher(lowerInput);
+        if (weatherMatcher.find()) {
+            String location = weatherMatcher.group(1).trim();
+            return getWeather(location);
+        }
+        
+        // Help command
+        if (lowerInput.equals("help") || lowerInput.equals("commands")) {
+            return "Available commands:\n" +
+                   "- calculate [expression]: Calculate a mathematical expression\n" +
+                   "- define [term]: Get the definition of a term\n" +
+                   "- remember that [fact]: Store information for this conversation\n" +
+                   "- weather in [location]: Get simulated weather information\n" +
+                   "- help: Display this help message";
+        }
+        
+        return null; // No command matched
+    }
+    
+    private static String calculateExpression(String expression) {
+        try {
+            // Simple expression evaluator (handles basic operations)
+            // For a real implementation, consider using a proper expression parser library
+            expression = expression.replaceAll("\\s+", "");
+            
+            // Handle
